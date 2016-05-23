@@ -103,16 +103,13 @@ def mint(A,B):
     return 1 * (A * (A <= B) + B * (B < A))
 
 def frontiere(mask, neighborhood):
-   M = 1 - mask
-   K = M * 0
-   n = len(neighborhood)
-   for i, j in zip(neighborhood[:,0], neighborhood[:,1]):
+    M = 1 - mask
+    K = M * 0
+    n = len(neighborhood)
+    for i, j in zip(neighborhood[:,0], neighborhood[:,1]):
        K += shift_image(M, i, j)  
-   F = K * 0
-   for i in range(1, n):
-       F = F + (K == i)
-       F = F.astype(np.float32)
-   return F * mask
+    F = (K > 0) * (K < n)
+    return F * mask
    
 def penaltydata(mx,my,mask):
     sh = mask.shape
@@ -133,3 +130,12 @@ def square_neighborhood(n):
     dx, dy = np.meshgrid(np.arange(-n // 2 + 1, n // 2 + 1), np.arange(-n//2 + 1, n // 2 + 1 ))
     dx, dy = dx.ravel(), dy.ravel()
     return np.array([dx, dy]).T
+    
+def diametre(mask):
+    m = 1 - mask.copy()
+    n = 1 - mask.copy()
+    while 0 in m:
+        n = m
+        m = m + frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
+    f = frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
+    return n
