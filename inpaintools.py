@@ -108,7 +108,7 @@ def frontiere(mask, neighborhood):
     n = len(neighborhood)
     for i, j in zip(neighborhood[:,0], neighborhood[:,1]):
        K += shift_image(M, i, j)  
-    F = (K > 0) * (K < n)
+    F = (K > 0)
     return F * mask
    
 def penaltydata(mx,my,mask):
@@ -133,9 +133,8 @@ def square_neighborhood(n):
     
 def diametre(mask):
     m = 1 - mask.copy()
-    n = 1 - mask.copy()
+    n = 0
     while 0 in m:
-        n = m
+        n += 1 
         m = m + frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
-    f = frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
-    return n
+    return np.sqrt(2) * n
