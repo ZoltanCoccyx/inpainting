@@ -67,10 +67,10 @@ def multiscale(im, mask, L = 2):
     labelmap=np.zeros((sh[0]*(2**(-L)),sh[0]*(2**(-L))))
     shifts = square_neighborhood(2 * rayon(mask)) #TODO : crude
     data_neighborhood = square_neighborhood(7)
-    dataterm = datat(im, mask, shifts, data_neighborhood)
+    data_energy = dataterm(im, mask, shifts, data_neighborhood)
     
     # recupération de la première carte d'offsets
-    out, labelmap = shiftmaps(scaledim, scaledmask, shifts, dataterm, 2)
+    out, labelmap = shiftmaps(scaledim, scaledmask, shifts, data_energy, 2)
     
     # système de perturbations, peut être pris plus grand, mais en aucun cas plus petit.
     perturbations = np.array([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]])
@@ -81,26 +81,6 @@ def multiscale(im, mask, L = 2):
         
         # Construction du dataterm à cette échelle
         D = np.array((width, heigth, len(perturbations)))
-        for dxdy in perturbations:
-            M = np.copy(scaledmask)
-            I = im * (np.dstack((M==0, M==0, M==0)))
-            e = []
-            E = []
-            D = []
-            S = np.zeros(mask.shape)
-            Data = np.zeros(mask.shape)
-            for i, j in zip(neighborhood[:,0], neighborhood[:,1]):
-                u = shift_image(I, i, j)
-                v = warp(u, mx, my)
-                e.append(u)
-                E.append(v)
-                x = (i ** 2 + j ** 2) ** 0.5
-                D.append(w(x) * ((diff_image(u,v) ** 2) * ((u[:,:,0]>0) * (v[:,:,0]>0))))
-                S = S + w(x) * ((v[:,:,0]>0) * (u[:,:,0]>0))
-            S2 = S + ((S * F)==0)
-            for Dataterm in D:
-                Data = Data + (1 / S2) * Dataterm
-            P = penaltydata(mx, my, mask)
-            return ((Data + 5000000 * ((S * F)==0)) * (F > 0)) + P
-    
+        
+        
     
