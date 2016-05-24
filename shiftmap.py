@@ -83,12 +83,10 @@ def dataterm(im, mask, shifts, data_neighborhood):
     
     return result
             
-def shiftmaps(im, mask, shifts, D, rounds = 1):
-    neighborhood = np.array([[0,1],[0,-1],[1,0],[-1,0]])
-    F = frontiere(mask, neighborhood)
+def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,-1],[1,0],[-1,0]]),  rounds = 1):
+    F = frontiere(mask, smoothness_neighborhood)
     M = np.copy(mask * (F==0))
     F2 = frontiere(mask, np.array([[1,0],[0,1]]))
-    M = M + F2
     nlabels = len(shifts)
     sz = np.prod(mask.shape[0:2])
     sh = mask.shape[0:2]
@@ -102,7 +100,12 @@ def shiftmaps(im, mask, shifts, D, rounds = 1):
     #D0=Data(im,mx,my,mask,F).astype(np.float32)
     E = 2000000 + np.sum(D[:, :, 0])
      
-        
+    half_neighborhood = [np.array([0,1])]
+    for k in smoothness_neighborhood:
+        if k[0] > 0:
+            half_neighborhood.append(k)
+    half_neighborhood = np.array(half_neighborhood)
+    
     # alpha expansion loop
     for t in range(rounds*len(shifts)):
         currlab = np.mod(t,len(shifts))
@@ -114,32 +117,27 @@ def shiftmaps(im, mask, shifts, D, rounds = 1):
         outM = warp(im, mx, my) 
         # compute warped image for the candidate shift 
         outAlpha = warp(im, (mx*0+ai)*mask, (my*0+aj)*mask)    # can be precomputed
-
-          
-        # construct the baseline regularity term 4-connected           
-        for i,j in ((1,0),(0,1)):
+        
+        L = []
+        
+        for i,j in half_neighborhood:
             tmpx = shift_image(mx,-i,-j) 
             tmpy = shift_image(my,-i,-j)
             outQ = warp(im, tmpx, tmpy)
+            Mnew = M + frontiere(mask, np.array([[i,j]]))
             
             #p+m(q)   
             p1 = indices                      # current pixel
             p2 = shift_image(indices,-i,-j)   # always the same idx
+            nullarray = (0 * mx).astype('float32')
             
-            if(i==1):
-                E00 = (diff_image(outM, outQ) + difflabel(mx, my, tmpx, tmpy)) * M
-                E01 = (diff_image(outM, outAlpha) + difflabel(mx, my, mx * 0 + ai, my * 0 + aj)) * M
-                E10 = (diff_image(outAlpha, outQ) + difflabel(tmpx, tmpy, mx * 0 + ai, my * 0 + aj)) * M
-                E11 = 0 * E00   # 0
-                e1, e2 = p1, p2
-               
-                    
-            else:
-                _E00 = (diff_image(outM, outQ) + difflabel(mx, my, tmpx, tmpy))*M
-                _E01 = (diff_image(outM, outAlpha) + difflabel(mx, my, mx * 0 + ai, my * 0 + aj)) * M
-                _E10 = (diff_image(outAlpha, outQ) + difflabel(tmpx, tmpy, mx * 0 + ai, my * 0 + aj)) * M
-                _E11 = 0 * E00                  
-                _e1,_e2 = p1, p2
+            L.append(p1[:-j if j else None,:-i if i else None])
+            L.append(p2[:-j if j else None,:-i if i else None])
+            L.append(((diff_image(outM, outQ) + difflabel(mx, my, tmpx, tmpy)) * Mnew)[:-j if j else None,:-i if i else None]) #E00
+            L.append(((diff_image(outM, outAlpha) + difflabel(mx, my, nullarray + ai, nullarray + aj)) * Mnew)[:-j if j else None,:-i if i else None]) #E01
+            L.append(((diff_image(outAlpha, outQ) + difflabel(tmpx, tmpy, nullarray + ai, nullarray + aj)) * Mnew)[:-j if j else None,:-i if i else None]) #E10
+            L.append(nullarray[:-j if j else None,:-i if i else None]) #E11
+            print(len(L))
 
         ix, iy = np.meshgrid(np.arange(sh[1]), np.arange(sh[0]))
 #        
@@ -147,9 +145,7 @@ def shiftmaps(im, mask, shifts, D, rounds = 1):
         D1 = D[:, :, currlab].astype(np.float32)
         
         # trim the last row/column of the edge matrices
-        energy, blab = solve_binary_problem(indices, D0, D1, 
-                        e1[:,:-1], e2[:,:-1], E00[:,:-1], E01[:,:-1], E10[:,:-1], E11[:,:-1],
-                        _e1[:-1,:], _e2[:-1,:], _E00[:-1,:], _E01[:-1,:], _E10[:-1,:], _E11[:-1,:])
+        energy, blab = solve_binary_problem(indices, D0, D1, L)
         
         # update solution  
         if energy<E:

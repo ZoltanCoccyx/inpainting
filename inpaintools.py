@@ -10,9 +10,7 @@ import numpy as np
 
 ## Alpha-expansion related functions
 
-def solve_binary_problem(indices, D0, D1, 
-                        e1, e2, V00, V01, V10, V11,
-                        _e1=None, _e2=None, _V00=None, _V01=None, _V10=None, _V11=None):
+def solve_binary_problem(indices, D0, D1, L):
     '''
     solve the labeling problem     
         min_x    \sum_i  D_i(x_i) + \sum_{ij}  V_ij(x_i,x_j)     
@@ -28,18 +26,45 @@ def solve_binary_problem(indices, D0, D1,
     # add unary terms                     
     e.add_term1_vectorized(indices.ravel(), D0.ravel(), D1.ravel())
     
-    # add binary terms                     
-    e.add_term2_vectorized(e1.ravel() , e2.ravel() , 
-                           V00.ravel(), V01.ravel(), 
-                           V10.ravel(), V11.ravel())
-    # add more binary terms                     
-    if type(_V11) != type(None):
-        e.add_term2_vectorized(_e1.ravel() , _e2.ravel() , 
-                               _V00.ravel(), _V01.ravel(), 
-                               _V10.ravel(), _V11.ravel())
+    for k in range(len(L) // 6):
+        e.add_term2_vectorized(L[6*k].ravel(),L[6*k+1].ravel(),
+                               L[6*k+2].ravel(),L[6*k+3].ravel(),
+                               L[6*k+4].ravel(),L[6*k+5].ravel())
+    
     Emin = e.minimize()       
     out  = e.get_var_vectorized()
     return Emin, out.reshape(sh)
+    
+#def solve_binary_problem(indices, D0, D1, 
+#                        e1, e2, V00, V01, V10, V11,
+#                        _e1=None, _e2=None, _V00=None, _V01=None, _V10=None, _V11=None):
+#    '''
+#    solve the labeling problem     
+#        min_x    \sum_i  D_i(x_i) + \sum_{ij}  V_ij(x_i,x_j)     
+#        with x_i \in {0,1}
+#    '''
+#    sz = D0.size
+#    sh = D0.shape
+#    e  = pymaxflow.PyEnergy(sz, sz*4)
+#
+#    # variables
+#    first_node_idx = e.add_variable(sz)
+#    
+#    # add unary terms                     
+#    e.add_term1_vectorized(indices.ravel(), D0.ravel(), D1.ravel())
+#    
+#    # add binary terms                     
+#    e.add_term2_vectorized(e1.ravel() , e2.ravel() , 
+#                           V00.ravel(), V01.ravel(), 
+#                           V10.ravel(), V11.ravel())
+#    # add more binary terms                     
+#    if type(_V11) != type(None):
+#        e.add_term2_vectorized(_e1.ravel() , _e2.ravel() , 
+#                               _V00.ravel(), _V01.ravel(), 
+#                               _V10.ravel(), _V11.ravel())
+#    Emin = e.minimize()       
+#    out  = e.get_var_vectorized()
+#    return Emin, out.reshape(sh)
  
 ## Image displacements : circular shifts, warps, calculation of displacement maps
    
