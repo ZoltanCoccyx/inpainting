@@ -82,8 +82,8 @@ def compute_displacement_map(m, shifts, mask=None):
 ## Distance
 
 def diff_image(a, b, p = 2):
-    if len(a.shape)==3:
-        return np.sum(np.abs(a - b)**p, axis=2) ** (1 / p)
+    if len(a.shape) > 1:
+        return np.sum(np.abs(a - b)**p, axis=2) ** (1 / float(p))
     else:
         return np.abs(a - b)
 
@@ -108,7 +108,7 @@ def frontiere(mask, neighborhood):
     n = len(neighborhood)
     for i, j in zip(neighborhood[:,0], neighborhood[:,1]):
        K += shift_image(M, i, j)  
-    F = (K > 0)
+    F = K > 0
     return F * mask
    
 def penaltydata(mx,my,mask):
@@ -131,7 +131,7 @@ def square_neighborhood(n):
     dx, dy = dx.ravel(), dy.ravel()
     return np.array([dx, dy]).T
     
-def diametre(mask):
+def rayon(mask):
     m = 1 - mask.copy()
     n = 0
     while 0 in m:
