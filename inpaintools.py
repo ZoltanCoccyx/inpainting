@@ -7,6 +7,7 @@ Created on Thu May 19 10:35:28 2016
 
 import pymaxflow
 import numpy as np
+from time import time
 
 ## Alpha-expansion related functions
 
@@ -23,7 +24,7 @@ def solve_binary_problem(indices, D0, D1, L):
     # variables
     first_node_idx = e.add_variable(sz)
     
-    # add unary terms                     
+    # add unary terms
     e.add_term1_vectorized(indices.ravel(), D0.ravel(), D1.ravel())
     
     for k in range(len(L) // 6):
@@ -156,10 +157,20 @@ def square_neighborhood(n):
     dx, dy = dx.ravel(), dy.ravel()
     return np.array([dx, dy]).T
     
+def round_neighborhood(r):
+    r = int(r) + 1
+    result = []
+    for k in range(-r, r + 1):
+        for i in range(-r, r + 1):
+            if (k ** 2 + i ** 2) ** 0.5 < r:
+                result.append(np.array((k,i)))
+    return np.array(result)
+    
 def rayon(mask):
-    m = 1 - mask.copy()
+    m = mask.copy()
     n = 0
-    while 0 in m:
+    while 1 in m:
+        t = time()
         n += 1 
-        m = m + frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
-    return np.sqrt(2) * n
+        m = m - frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
+    return n

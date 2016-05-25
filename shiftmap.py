@@ -52,9 +52,9 @@ def Datat(im, mask, shifts, neighborhood = np.array([[0,1],[0,-1],[0,2],[0,-2],[
     return D    
     
 def dataterm(im, mask, shifts, data_neighborhood):
-    bob = time()
-    im = im * (np.dstack((1 - mask, 1 - mask, 1 - mask)))
+    #bob = time()
     width, height, depth = im.shape
+    im = im * (np.dstack((1 - mask, ) * depth))
     card_offsets = len(shifts)
     card_neighbors = len(data_neighborhood)
     result = np.zeros((width, height, card_offsets))
@@ -64,8 +64,12 @@ def dataterm(im, mask, shifts, data_neighborhood):
         dx, dy = data_neighborhood[index_neighbor]
         neighims[:, :, :, index_neighbor] = shift_image(im, dx, dy)
     
+    print 'Calcul du dataterm. ', card_offsets, 'offsets. 0% ',
+    p = 0.0
     for index_offset in range(card_offsets):
-        print(index_offset)
+        if float(index_offset) / card_offsets > p:
+            print '#',
+            p += 0.05
         mx, my = shifts[index_offset]
         Mx = mx * np.ones((width, height)) * mask
         My = my * np.ones((width, height)) * mask
@@ -83,7 +87,8 @@ def dataterm(im, mask, shifts, data_neighborhood):
         normalisation += normalisation == 0
         partial_result /= normalisation
         result[:, :, index_offset] = partial_result + penaltydata(Mx, My, mask)
-    print(time()-bob)
+    print '100%'
+    #print 'Temps de calcul = ', time()-bob
     return result
             
 def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,-1],[1,0],[-1,0]]),  rounds = 1):
@@ -109,13 +114,17 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
     half_neighborhood = np.array(half_neighborhood)
     
     # alpha expansion loop
+    print 'Alpha-expansion. ', len(shifts), 'offsets. 0% ',
+    p = 0.0
     for t in range(rounds*len(shifts)):
+        if float(t) / (rounds*len(shifts)) > p:
+            print '#',
+            p += 0.05
         
         currlab = np.mod(t,len(shifts))
         ai,aj = shifts[currlab]
         # compute warp for the current map
         mx, my = compute_displacement_map(labelmap, shifts, mask)
-                
         # compute warped image for the current map 
         outM = warp(im, mx, my) 
         # compute warped image for the candidate shift 
@@ -129,17 +138,21 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
             outQ = warp(im, tmpx, tmpy)
             Mnew = M + frontiere(mask, np.array([[i,j]]))
             
-            #p+m(q)   
             p1 = indices                      # current pixel
             p2 = shift_image(indices,-i,-j)   # always the same idx
-            nullarray = (0 * mx).astype('float32')
-            
             L.append(p1[:-j if j else None,:-i if i else None])
             L.append(p2[:-j if j else None,:-i if i else None])
-            L.append(((diff_image(outM, outQ) ** 2 + difflabel(mx, my, tmpx, tmpy)) * Mnew)[:-j if j else None,:-i if i else None]) #E00
-            L.append(((diff_image(outM, outAlpha) ** 2 + difflabel(mx, my, nullarray + ai, nullarray + aj)) * Mnew)[:-j if j else None,:-i if i else None]) #E01
-            L.append(((diff_image(outAlpha, outQ) ** 2 + difflabel(tmpx, tmpy, nullarray + ai, nullarray + aj)) * Mnew)[:-j if j else None,:-i if i else None]) #E10
-            L.append(nullarray[:-j if j else None,:-i if i else None]) #E11
+            
+            nullarray = (0 * mx).astype('float32')
+            E00 = (((diff_image(outM, outQ) ** 2 + difflabel(mx, my, tmpx, tmpy)) * Mnew)[:-j if j else None,:-i if i else None]).astype(np.float32)
+            E01 =(((diff_image(outM, outAlpha) ** 2 + difflabel(mx, my, nullarray + ai, nullarray + aj)) * Mnew)[:-j if j else None,:-i if i else None]).astype(np.float32)
+            E10 = (((diff_image(outAlpha, outQ) ** 2 + difflabel(tmpx, tmpy, nullarray + ai, nullarray + aj)) * Mnew)[:-j if j else None,:-i if i else None]).astype(np.float32)
+            E11 = (nullarray[:-j if j else None,:-i if i else None]).astype(np.float32)
+            
+            L.append(E00) #E00
+            L.append(E01) #E01
+            L.append(E10) #E10
+            L.append(E11) #E11
 
         ix, iy = np.meshgrid(np.arange(sh[1]), np.arange(sh[0]))
 #        
@@ -153,7 +166,7 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
         bob = time()
         if energy<E:
             E=energy
-            print "it:%02d \t l:%d \t (%d,%d) \t changed:%d \t e:%f"%(t, currlab, ai, aj, np.sum(blab[:]), energy)
+#            print "it:%02d \t l:%d \t (%d,%d) \t changed:%d \t e:%f"%(t, currlab, ai, aj, np.sum(blab[:]), energy)
 #            mx, my = compute_displacement_map(labelmap, shifts, mask)
 #            outM = warp(im, mx, my)
 #            plt.imshow(outM/255.)
@@ -161,44 +174,48 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
             labelmap = labelmap * (1 - blab) + currlab * blab
             #print(time()-bob)
             
+    print '100%'    
     mx, my = compute_displacement_map(labelmap, shifts, mask)
     outM = warp(im, mx, my)
     
     return outM, labelmap    
     
 
-maxshift = 200
-numshifts = 75
-
-shifts = np.random.randint(maxshift,size=numshifts*2).reshape((numshifts,2)) - maxshift/2
-shifts[0:25,:] = square_neighborhood(5) * 11
-shifts[25:50,:] = square_neighborhood(5) * 5
-shifts[50:,:] = square_neighborhood(5) * 16
-
-plt.figure(0)
-plt.plot(shifts[:,0], shifts[:,1], 'o')
-plt.title('repartition offsets')
-
-im = imread('elephant2_300x225_rgb.jpg').squeeze().astype(np.float32)
-mask = imread('elephant2_300x225_msk.jpg').squeeze().astype(np.float32)
-
-#im = imread('foule.jpg').squeeze().astype(np.float32)
+#maxshift = 200
+#numshifts = 99
+#shifts = np.zeros((numshifts, 2))
 #
-#mask = imread('foulem.jpg').squeeze().astype(np.float32)
-#mask=mask[:,:,0]
-#im=np.dstack((im,im,im))
-
-mask = mask > 10
-  
-T0 = time()
-
-D = dataterm(im, mask, shifts, square_neighborhood(5))
-
-out, labelmap = shiftmaps(im, mask, shifts, D, smoothness_neighborhood = square_neighborhood(3) ,rounds=4)
-T1=time() 
-print(T1-T0)
-
-plt.figure(1)
-plt.imshow(out/np.max(out))
-plt.figure(2)
-plt.imshow(labelmap)
+#shifts[50:,:] = square_neighborhood(7) * np.array([30, 5])
+#shifts[0:25,:] = square_neighborhood(5) * 11
+#shifts[25:50,:] = square_neighborhood(5) * 5
+##shifts[50:75,:] = square_neighborhood(5) * 16
+##shifts[75:,:] = square_neighborhood(5) * np.array([30, 5])
+#
+#plt.figure(0)
+#plt.plot(shifts[:,0], shifts[:,1], 'o')
+#plt.title('repartition offsets')
+#
+#im = imread('elephant2_300x225_rgb.jpg').squeeze().astype(np.float32)
+#mask = imread('elephant2_300x225_msk.jpg').squeeze().astype(np.float32)
+#
+##im = imread('foule.jpg').squeeze().astype(np.float32)
+##
+##mask = imread('foulem.jpg').squeeze().astype(np.float32)
+##mask=mask[:,:,0]
+##im=np.dstack((im,im,im))
+#
+#mask = mask > 10
+#  
+#T0 = time()
+#
+#D = dataterm(im, mask, shifts, square_neighborhood(5))
+#
+#out, labelmap = shiftmaps(im, mask, shifts, D, smoothness_neighborhood = square_neighborhood(3), rounds=3)
+#T1=time() 
+#print(T1-T0)
+#import scipy.ndimage
+#out = scipy.ndimage.filters.gaussian_filter(out, sigma=.5)
+#plt.figure(1)
+#plt.imshow(out/np.max(out))
+#plt.figure(2)
+#plt.imshow(labelmap)
