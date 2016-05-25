@@ -73,6 +73,7 @@ def dataterm(im, mask, shifts, data_neighborhood):
         normalisation = np.zeros((width, height))
         
         for index_neighbor in range(card_neighbors):
+            dx, dy = data_neighborhood[index_neighbor]
             neighim = neighims[:, :, :, index_neighbor].copy()
             offsetim = warp(neighim, Mx, My)
             neigh_length = (dx ** 2 + dy ** 2) ** 0.5
@@ -87,7 +88,7 @@ def dataterm(im, mask, shifts, data_neighborhood):
             
 def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,-1],[1,0],[-1,0]]),  rounds = 1):
     F = frontiere(mask, smoothness_neighborhood)
-    M = np.copy(mask * (F==0))
+    M = np.copy(mask - F)
     F2 = frontiere(mask, np.array([[1,0],[0,1]]))
     nlabels = len(shifts)
     sz = np.prod(mask.shape[0:2])
@@ -95,9 +96,8 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
     
     indices = np.arange(sz).reshape(sh).astype(np.int32)
 
-    # generate a random initial labeling
-    
-    labelmap = np.random.randint(nlabels,size=sz).reshape(sh) * (mask>0) *0
+    # generate a trivial initial labeling
+    labelmap = np.zeros(sh).astype(np.int32)
     mx, my = compute_displacement_map(labelmap, shifts, mask)
     #D0=Data(im,mx,my,mask,F).astype(np.float32)
     E = 2000000 + np.sum(D[:, :, 0])
@@ -110,6 +110,7 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
     
     # alpha expansion loop
     for t in range(rounds*len(shifts)):
+        
         currlab = np.mod(t,len(shifts))
         ai,aj = shifts[currlab]
         # compute warp for the current map
@@ -191,7 +192,7 @@ mask = mask > 10
   
 T0 = time()
 
-D = dataterm(im, mask, shifts, square_neighborhood(3))
+D = dataterm(im, mask, shifts, square_neighborhood(5))
 
 out, labelmap = shiftmaps(im, mask, shifts, D, smoothness_neighborhood = square_neighborhood(3) ,rounds=4)
 T1=time() 
