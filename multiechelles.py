@@ -65,7 +65,7 @@ def multiscale(im, mask, L = 2):
     scaledmask = (np.sum(block_view(mask, (2**L,2**L)), axis = (2, 3)) > 0) * 1
     scaledim = low_resolution_coordinates(im, scaledmask)
     labelmap = np.zeros((sh[0]*(2**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
-    shifts = round_neighborhood(2 * rayon(mask) / 2 ** L)
+    shifts = round_neighborhood(rayon(mask) / 2 ** L)
     data_neighborhood = square_neighborhood(3)
     data_energy = dataterm(scaledim, scaledmask, shifts, data_neighborhood)
 
@@ -74,20 +74,17 @@ def multiscale(im, mask, L = 2):
     # recupération de la première carte d'offsets
     out, labelmap = shiftmaps(scaledim, scaledmask, shifts, data_energy, rounds = 2)
     
-    print 'Labelmap initial calculé'    
-    
-    # système de perturbations, peut être pris plus grand, mais en aucun cas plus petit.
-    perturbations = np.array([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]])
+    print 'Labelmap initial calculé'
     
     # remontée en échelle
     for k in range(L):
         print ' ! Echelle ', L - k, '!'
         labelmap, scaledmask, scaledim = changescale(labelmap, mask, im)
-        shifts = 2 * shifts
+        shifts = 2 * shifts # adaptation of the offsets to the new scale
         
         # Construction du dataterm à cette échelle
         width, height, depth = scaledim.shape
-        scaledim = scaledim * (np.dstack((1 - mask, ) * depth))
+        scaledim = scaledim * (np.dstack((1 - scaledmask, ) * depth))
         card_perturbations = len(perturbations)
         card_neighbors = len(data_neighborhood)
         data_energy = np.zeros((width, height, card_perturbations))
@@ -119,8 +116,12 @@ def multiscale(im, mask, L = 2):
             data_energy[:, :, index_perturbation] = partial_result + penaltydata(Mx, My, scaledmask)
             
         print 'Done' 
-        # Traitement de cette échelle par la méthode de Pritch
-        #def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,-1],[1,0],[-1,0]]),  rounds = 1):
+        
+        # Traitement de cette échelle par alpha-expansion des perturbations
+        
+        # système de perturbations, peut être pris plus grand, mais en aucun cas plus petit.
+        perturbations = np.array([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]])
+        
         smoothness_neighborhood = np.array([[0,1],[0,-1],[1,0],[-1,0]])            
         F = frontiere(scaledmask, smoothness_neighborhood)
         M = np.copy(scaledmask - F)
@@ -129,7 +130,7 @@ def multiscale(im, mask, L = 2):
         
         indices = np.arange(sz).reshape(sh).astype(np.int32)
     
-        # generate a trivial initial labeling
+        # generate a trivial initial perturbation labeling for this scale
         perturbationmap = np.zeros(sh).astype(np.int32)
         mx, my = np.zeros(sh), np.zeros(sh) # a priori pas de pb, à ce stade (0,0) est bien dans le voisinage
         #D0=Data(im,mx,my,mask,F).astype(np.float32)
@@ -142,7 +143,7 @@ def multiscale(im, mask, L = 2):
         half_neighborhood = np.array(half_neighborhood)
         
         rounds = 2            
-        
+        ######################################################################
         # alpha expansion loop
         print "Calcul de l'alpha-expansion à cette échelle. ", card_perturbations, 'perturbations.'
         for t in range(rounds * card_perturbations):
@@ -150,8 +151,8 @@ def multiscale(im, mask, L = 2):
             currlab = np.mod(t, card_perturbations)
             ai, aj = perturbations[currlab]
             # compute warp for the current map
-            tempshifts = shifts + perturbations[currlab]
-            dx, dy = compute_displacement_map(perturbationmap, perturbations, scaledmask)
+            tempshifts = shifts + 
+            dx, dy = compute_displacement_map(perturbationmap, perturbations[currlab], scaledmask)
             mx, my = label
             
             # compute warped image for the current map 
