@@ -14,9 +14,9 @@ from matplotlib import pyplot as plt
 from time import time
 
 im = imread('elephant2_300x225_rgb.jpg').squeeze().astype(np.float32)
-im=im[1:,:]
+im=im[1:,:-4]
 mask = imread('elephant2_300x225_msk.jpg').squeeze().astype(np.float32)
-mask=mask[1:,:]
+mask=mask[1:,:-4]
 mask = mask > 10
 
 def changescale(mx, my, mask, im):
@@ -75,7 +75,7 @@ def multiscale(im, mask, L = 2):
     # Initialisation des variables à la plus basse échelle
     scaledmask = (np.sum(block_view(mask, (2**L,2**L)), axis = (2, 3)) > 0) * 1
     scaledim = low_resolution_coordinates(im, scaledmask)
-    labelmap = np.zeros((sh[0]*(2**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
+    labelmap = np.zeros((sh[0]*(2.5**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
     shifts = round_neighborhood(2*rayon(mask) / 2 ** L)
     data_neighborhood = square_neighborhood(3)
     data_energy = dataterm(scaledim, scaledmask, shifts, data_neighborhood)
@@ -95,7 +95,7 @@ def multiscale(im, mask, L = 2):
     # chaque échelle : offsets "principaux" + perturabtion1 + perturbation2 + ...    
     
     # système de perturbations, peut être pris plus grand, mais en aucun cas plus petit.
-    perturbations = np.array([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]])
+    perturbations = square_neighborhood(5) #np.array([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]])
     
     # remontée en échelle
     for k in range(L):
