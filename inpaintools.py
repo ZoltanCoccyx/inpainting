@@ -127,11 +127,11 @@ def square_neighborhood(n):
     return np.array([dx, dy]).T
     
 def round_neighborhood(r):
-    r = int(r) + 1
+    r = int(r)
     result = []
-    for k in range(-r, r + 1):
-        for i in range(-r, r + 1):
-            if (k ** 2 + i ** 2) ** 0.5 < r:
+    for k in range(-r-1, r + 2):
+        for i in range(-r-1, r + 2):
+            if (k ** 2 + i ** 2) <= r**2:
                 result.append(np.array((k,i)))
     return np.array(result)
     
