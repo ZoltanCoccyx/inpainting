@@ -14,7 +14,9 @@ from matplotlib import pyplot as plt
 from time import time
 
 im = imread('elephant2_300x225_rgb.jpg').squeeze().astype(np.float32)
+im=im[1:,:]
 mask = imread('elephant2_300x225_msk.jpg').squeeze().astype(np.float32)
+mask=mask[1:,:]
 mask = mask > 10
 
 def changescale(mx, my, mask, im):
@@ -31,15 +33,12 @@ def changescale(mx, my, mask, im):
     newmy[1::2,::2] = my
     newmy[1::2,1::2] = my
     newmy[::2,1::2] = my
-    scaledR = np.sum(block_view(im[:, :, 0], (scale, scale)), axis = (2,3)) / scale ** 2 * scaledmask
-    scaledG = np.sum(block_view(im[:, :, 1], (scale, scale)), axis = (2,3)) / scale ** 2 * scaledmask
-    scaledB = np.sum(block_view(im[:, :, 2], (scale, scale)), axis = (2,3)) / scale ** 2 * scaledmask
+    scaledR = np.sum(block_view(im[:, :, 0], (scale, scale)), axis = (2,3)) / scale ** 2
+    scaledG = np.sum(block_view(im[:, :, 1], (scale, scale)), axis = (2,3)) / scale ** 2
+    scaledB = np.sum(block_view(im[:, :, 2], (scale, scale)), axis = (2,3)) / scale ** 2
     scaledim = np.dstack((scaledR, scaledG, scaledB))
     print(newmx.shape)
-    return newmx[: (scaledmask.shape[0] % 2) if (scaledmask.shape[0] % 2) else None , 
-                  : -(scaledmask.shape[1] % 2) if (scaledmask.shape[1] % 2) else None] * scaledmask, \
-                  newmy[: (scaledmask.shape[0] % 2) if (scaledmask.shape[0] % 2) else None , 
-                  : -(scaledmask.shape[1] % 2) if (scaledmask.shape[1] % 2) else None] * scaledmask, scaledmask, scaledim 
+    return newmx * scaledmask, newmy * scaledmask,  scaledmask, scaledim 
                   # pour ne pas forcer une image impaire dans une image paire PAS BEAU !
 
 def block_view(A, block= (2, 2)): # TODO: gérer les effets de bords : important si trou au bord
@@ -77,7 +76,7 @@ def multiscale(im, mask, L = 2):
     scaledmask = (np.sum(block_view(mask, (2**L,2**L)), axis = (2, 3)) > 0) * 1
     scaledim = low_resolution_coordinates(im, scaledmask)
     labelmap = np.zeros((sh[0]*(2**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
-    shifts = round_neighborhood(1.2*rayon(mask) / 2 ** L)
+    shifts = round_neighborhood(2*rayon(mask) / 2 ** L)
     data_neighborhood = square_neighborhood(3)
     data_energy = dataterm(scaledim, scaledmask, shifts, data_neighborhood)
 
@@ -102,10 +101,11 @@ def multiscale(im, mask, L = 2):
     for k in range(L):
         print ' ! Echelle ', L - k, '!'
         cumulx, cumuly, scaledmask, scaledim = changescale(cumulx, cumuly, mask, im)
-        print(cumulx.shape, '555555')
         cumulx, cumuly = 2 * cumulx, 2 * cumuly # adaptation of the offsets to the new scale
+        plt.figure(55*k)
+        plt.imshow(scaledim/255)
         plt.figure(8759**k)
-        plt.imshow(warp(scaledim, cumulx, cumuly))
+        plt.imshow(warp(scaledim, cumulx, cumuly)/255)
         
         # Construction du dataterm à cette échelle
         width, height, depth = scaledim.shape
