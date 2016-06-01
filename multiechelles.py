@@ -75,7 +75,7 @@ def multiscale(im, mask, L = 2):
     # Initialisation des variables à la plus basse échelle
     scaledmask = (np.sum(block_view(mask, (2**L,2**L)), axis = (2, 3)) > 0) * 1
     scaledim = low_resolution_coordinates(im, scaledmask)
-    labelmap = np.zeros((sh[0]*(2.5**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
+    labelmap = np.zeros((sh[0]*(2**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
     shifts = round_neighborhood(2*rayon(mask) / 2 ** L)
     data_neighborhood = square_neighborhood(3)
     data_energy = dataterm(scaledim, scaledmask, shifts, data_neighborhood)
