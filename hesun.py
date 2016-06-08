@@ -5,6 +5,8 @@ Created on Wed May 18 13:03:07 2016
 @author: Balthazar
 """
 
+from shiftmap import *
+from inpaitools import *
 import numpy as np
 
 def offset_system(dx, dy, m):

@@ -142,3 +142,44 @@ def rayon(mask):
         n += 1 
         m = m - frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
     return n
+
+def dataterm(im, mask, shifts, data_neighborhood):
+    #bob = time()
+    width, height, depth = im.shape
+    im = im * (np.dstack((1 - mask, ) * depth))
+    card_offsets = len(shifts)
+    card_neighbors = len(data_neighborhood)
+    result = np.zeros((width, height, card_offsets))
+    neighims = np.zeros((width, height, depth, card_neighbors))
+    w = lambda x : np.exp(-0.25*(x**2))
+    
+    for index_neighbor in range(card_neighbors):
+        dx, dy = data_neighborhood[index_neighbor]
+        neighims[:, :, :, index_neighbor] = shift_image(im, dx, dy)
+    
+    print 'Calcul du dataterm. ', card_offsets, 'offsets. 0% ',
+    p = 0.0
+    for index_offset in range(card_offsets):
+        if float(index_offset) / card_offsets > p:
+            print '#',
+            p += 0.05
+        mx, my = shifts[index_offset]
+        Mx = mx * np.ones((width, height)) * mask
+        My = my * np.ones((width, height)) * mask
+        partial_result = np.zeros((width, height))
+        normalisation = np.zeros((width, height))
+        
+        for index_neighbor in range(card_neighbors):
+            dx, dy = data_neighborhood[index_neighbor]
+            neighim = neighims[:, :, :, index_neighbor].copy()
+            offsetim = warp(neighim, Mx, My)
+            neigh_length = (dx ** 2 + dy ** 2) ** 0.5
+            partial_result += w(neigh_length) * (diff_image(neighim, offsetim) ** 2) * (neighim[:,:,0]>0) * (offsetim[:,:,0]>0)
+            normalisation += w(neigh_length) * (neighim[:,:,0]>0) * (offsetim[:,:,0]>0)
+        
+        normalisation += normalisation == 0
+        partial_result /= normalisation
+        result[:, :, index_offset] = partial_result + penaltydata(Mx, My, mask)
+    print '100%'
+    #print 'Temps de calcul = ', time()-bob
+    return result
