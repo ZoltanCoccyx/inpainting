@@ -83,8 +83,8 @@ def diff_image(a, b, p = 2):
         return np.abs(a - b)
 
 def difflabel(mx, my, mx1, my1):
-    eps = 20
-    k2 = 5
+    eps = 0.01
+    k2 = 0.01
     K2 = k2 * np.ones(mx.shape)
     N = np.sqrt((mx - mx1) ** 2 + (my - my1) ** 2)
     return (eps * mint(N, K2)).astype(np.float32)

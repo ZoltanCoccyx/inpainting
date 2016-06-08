@@ -17,6 +17,8 @@ im = imread('elephant2_300x225_rgb.jpg').squeeze().astype(np.float32)
 im=im[1:,:-4]
 mask = imread('elephant2_300x225_msk.jpg').squeeze().astype(np.float32)
 mask=mask[1:,:-4]
+im = im[::-1,,:,:]
+mask = mask[::-1,,:]
 mask = mask > 10
 
 def changescale(mx, my, mask, im):
