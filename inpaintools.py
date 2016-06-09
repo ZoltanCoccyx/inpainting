@@ -77,7 +77,7 @@ def compute_displacement_map(m, shifts, mask=None):
 ## Distance
 
 def diff_image(a, b, p = 2):
-    if len(a.shape) > 1:
+    if len(a.shape) > 2:
         return np.sum(np.abs(a - b)**p, axis=2) ** (1 / float(p))
     else:
         return np.abs(a - b)
@@ -142,6 +142,8 @@ def rayon(mask):
         n += 1 
         m = m - frontiere(m, np.array([[1,0],[-1,0],[0,1],[0,-1]]))
     return n
+
+w = lambda x : np.exp(-0.25 * (x**2))   
 
 def dataterm(im, mask, shifts, data_neighborhood):
     #bob = time()
