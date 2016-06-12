@@ -76,9 +76,9 @@ def compute_displacement_map(m, shifts, mask=None):
 
 ## Distance
 
-def diff_image(a, b, p = 2):
+def diff_image(a, b):
     if len(a.shape) > 2:
-        return np.sum(np.abs(a - b)**p, axis=2) ** (1 / float(p))
+        return np.sum(np.abs(a - b)**2, axis=2) ** (1 / float(2))
     else:
         return np.abs(a - b)
 

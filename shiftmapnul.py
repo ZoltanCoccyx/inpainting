@@ -120,8 +120,6 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
     # alpha expansion loop
     print 'Alpha-expansion. ', len(shifts), 'offsets. 0% ',
     p = 0.0
-    a=0
-    bobidibop = []
     for t in range(rounds*len(shifts)):
         if float(t) / (rounds*len(shifts)) > p:
             print '#',
@@ -154,9 +152,9 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
             my = my * Mnew2
             
             nullarray = (0 * mx).astype('float32')
-            E00 = (((diff_image(outM, outQ) ** 2 + difflabel(mx, my, tmpx, tmpy)) * Mnew)[a:b,c:d]).astype(np.float32)
-            E01 = (((diff_image(outM, outAlpha) ** 2 + difflabel(mx, my, nullarray + ai, nullarray + aj)) * Mnew)[a:b,c:d]).astype(np.float32)
-            E10 = (((diff_image(outAlpha, outQ) ** 2 + difflabel(tmpx, tmpy, nullarray + ai, nullarray + aj)) * Mnew)[a:b,c:d]).astype(np.float32)
+            E00 = (((diff_image(outM, outQ) + difflabel(mx, my, tmpx, tmpy)) * Mnew)[a:b,c:d]).astype(np.float32)
+            E01 = (((diff_image(outM, outAlpha) + difflabel(mx, my, nullarray + ai, nullarray + aj)) * Mnew)[a:b,c:d]).astype(np.float32)
+            E10 = (((diff_image(outAlpha, outQ) + difflabel(tmpx, tmpy, nullarray + ai, nullarray + aj)) * Mnew)[a:b,c:d]).astype(np.float32)
             E11 = (nullarray[a:b,c:d]).astype(np.float32)
             
            # print(labelmap,8)
@@ -186,7 +184,7 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
                 plt.figure()
                 plt.imshow((E01-E00+E10-E11)<=0)
                 plt.pause(10**(-3))
-                bobidibop.append(np.min((E01-E00+E10-E11)))
+                print(np.min((E01-E00+E10-E11)))
 
         ix, iy = np.meshgrid(np.arange(sh[1]), np.arange(sh[0]))
 #        
@@ -213,7 +211,7 @@ def shiftmaps(im, mask, shifts, D, smoothness_neighborhood = np.array([[0,1],[0,
     outM = warp(im, mx, my)
     plt.figure(5)
     plt.plot(bobidibop)
-    return outM, labelmap, bobidibop
+    return outM, labelmap
     
 
 maxshift = 200

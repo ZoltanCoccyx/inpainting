@@ -9,17 +9,20 @@ import numpy as np
 from scipy.misc import imread
 from numpy.lib.stride_tricks import as_strided as ast
 from inpaintools import *
-from shiftmap import *
+from pritch import *
 from matplotlib import pyplot as plt
 from time import time
 
-im = imread('elephant2_300x225_rgb.jpg').squeeze().astype(np.float32)
+im = imread('elephant2_300x225_rgb.jpg').squeeze()
 im=im[1:,:-4]
-mask = imread('elephant2_300x225_msk.jpg').squeeze().astype(np.float32)
+mask = imread('elephant2_300x225_msk.jpg').squeeze()
 mask=mask[1:,:-4]
-im = im[::-1,,:,:]
-mask = mask[::-1,,:]
+im = im[::-1,:,:]
+mask = mask[::-1,:]
 mask = mask > 10
+
+data_neighborhood = square_neighborhood(5)
+smoothness_neighborhood = square_neighborhood(3)
 
 def changescale(mx, my, mask, im):
     '''Pour l'instant, ne gère que les images 2^nx2^n'''
@@ -77,15 +80,19 @@ def multiscale(im, mask, L = 2):
     # Initialisation des variables à la plus basse échelle
     scaledmask = (np.sum(block_view(mask, (2**L,2**L)), axis = (2, 3)) > 0) * 1
     scaledim = low_resolution_coordinates(im, scaledmask)
-    labelmap = np.zeros((sh[0]*(2**(-L)),sh[0]*(2**(-L)))) # TODO : trouver 0 ?
-    shifts = round_neighborhood(2*rayon(mask) / 2 ** L)
-    data_neighborhood = square_neighborhood(3)
-    data_energy = dataterm(scaledim, scaledmask, shifts, data_neighborhood)
+    labelmap = np.zeros((sh[0]//(2**L),sh[0]//(2**L)))
+    shifts = round_neighborhood(1.5*rayon(mask) / 2 ** L)
+    data_neighborhood = square_neighborhood(5)
+    smoothness_neighborhood = square_neighborhood(3)
 
     print 'Dataterm initial calculé'    
-    
+    print(scaledim.shape)
+    print(scaledmask.shape)
+    print(shifts.shape)
+    print(data_neighborhood.shape)
+    print(smoothness_neighborhood.shape)
     # recupération de la première carte d'offsets
-    out, labelmap = shiftmaps(scaledim, scaledmask, shifts, data_energy, rounds = 2)
+    out, labelmap = pritch(scaledim, scaledmask, shifts, data_neighborhood, smoothness_neighborhood, rounds = 2)
     print(np.max(out[:,:,:3]))
     plt.figure(2)
     plt.imshow(out[:,:,:3]/np.max(out[:,:,:3]))
@@ -230,3 +237,5 @@ def multiscale(im, mask, L = 2):
         plt.imshow(cumuly)
     
     return warp(im, cumulx, cumuly), cumulx, cumuly
+    
+out, x, y=multiscale(im,mask)

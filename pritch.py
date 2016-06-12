@@ -39,8 +39,8 @@ def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhoo
     alphax, alphay = alpha
     alphax = alphax * mask
     alphay = alphay * mask
-    outM = warp(im, mx, my)
-    outalpha = warp(im, alphax, alphay)
+    outM = warp(im, mx, my).astype(np.float32)
+    outalpha = warp(im, alphax, alphay).astype(np.float32)
     mask_broadcast = mask.reshape((mask.shape[0], mask.shape[1], 1))
     intM = mask - frontiere(mask, smoothness_neighborhood)
 
@@ -63,24 +63,11 @@ def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhoo
         Mnew = intM + frontiere(1- intM, np.array([[-i,-j]]))
         tempx = shift_image(mx, -i, -j) * mask
         tempy = shift_image(my, -i, -j) * mask
-        outQ = warp(im, tempx, tempy) * mask_broadcast
-        E00 = ((diff_image(outM, outQ)**2 + difflabel(mx, my, tempx, tempy)) * Mnew).astype(np.float32)
-        E10 = ((diff_image(outalpha, outQ)**2 + difflabel(alphax, alphay, tempx, tempy)) * Mnew).astype(np.float32)
-        E01 = ((diff_image(outM, outalpha)**2 + difflabel(mx, my, alphax, alphay)) * Mnew).astype(np.float32)
+        outQ = (warp(im, tempx, tempy) * mask_broadcast).astype(np.float32)
+        E00 = ((diff_image(outM, outQ) + difflabel(mx, my, tempx, tempy)) * Mnew).astype(np.float32)
+        E10 = ((diff_image(outalpha, outQ) + difflabel(alphax, alphay, tempx, tempy)) * Mnew).astype(np.float32)
+        E01 = ((diff_image(outM, outalpha) + difflabel(mx, my, alphax, alphay)) * Mnew).astype(np.float32)
         E11 = mx * 0
-        
-#        plt.figure()
-#        plt.imshow(E00, interpolation='nearest')
-#        plt.title((i,j))
-#        plt.pause(10**(-3))
-#        
-#        plt.figure()
-#        plt.imshow(mx,interpolation='nearest')        
-#        plt.pause(10**(-3))
-#        
-#        plt.figure()
-#        plt.imshow(my,interpolation='nearest')        
-#        plt.pause(10**(-3))
         
         L.append(E00[a:b,c:d].astype(np.float32))
         L.append(E10[a:b,c:d].astype(np.float32))
@@ -88,12 +75,8 @@ def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhoo
         L.append(E11[a:b,c:d].astype(np.float32))
         
         if np.sum((E01[a:b,c:d]-E00[a:b,c:d]+E10[a:b,c:d]-E11[a:b,c:d])<0) > 0:
-                plt.figure()
-                plt.imshow((E01[a:b,c:d]-E00[a:b,c:d]+E10[a:b,c:d]-E11[a:b,c:d])<0, interpolation= 'nearest')
-                plt.pause(10**(-3))
-                
-    energy, alphamap = solve_binary_problem(indices, D0.astype(np.float32), D1.astype(np.float32), L)
-    
+            return 'energie non reguliere'
+        energy, alphamap = solve_binary_problem(indices, D0.astype(np.float32), D1.astype(np.float32), L)
     return energy, alphamap
 
 
@@ -109,6 +92,13 @@ def alpha_expansion(im, mask, shifts, data_energy, smoothness_neighborhood, roun
         D0 = data_energy[iy, ix, labelmap]
         D1 = data_energy[:,:,currlab]
         mx, my = compute_displacement_map(labelmap, shifts, mask)
+        print(mx.shape)
+        print(my.shape)
+        print(alpha)
+        print(D0.shape)
+        print(D1.shape)
+        print(alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)[0])
+        print(alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)[1])
         new_energy, alphamap = alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)
         
         if new_energy < energy :
@@ -122,7 +112,12 @@ def alpha_expansion(im, mask, shifts, data_energy, smoothness_neighborhood, roun
 def pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, rounds):
     data_energy = dataterm(im, mask, shifts, data_neighborhood)
     labelmap = alpha_expansion(im, mask, shifts, data_energy, smoothness_neighborhood, rounds)
-    mx, my = compute_displacement_map(labelmap, shifts)
+    mx, my = compute_displacement_map(labelmap, shifts, mask)
     return warp(im, mx, my)
 
-out = pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, 1)
+#out = pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, 2)
+
+#out2=np.zeros(out.shape)
+#for i in range(225):
+#    for j in range(300):
+#        out2[i,j,:]=out[224-i,299-j,:]
