@@ -176,8 +176,10 @@ def dataterm(im, mask, shifts, data_neighborhood):
             neighim = neighims[:, :, :, index_neighbor].copy()
             offsetim = warp(neighim, Mx, My)
             neigh_length = (dx ** 2 + dy ** 2) ** 0.5
-            partial_result += w(neigh_length) * (diff_image(neighim, offsetim) ** 2) * (neighim[:,:,0]>0) * (offsetim[:,:,0]>0)
-            normalisation += w(neigh_length) * (neighim[:,:,0]>0) * (offsetim[:,:,0]>0)
+            neighmask = np.sum(neighim,axis = 2) > 0
+            offsetmask = np.sum(offsetim, axis = 2)
+            partial_result += w(neigh_length) * (diff_image(neighim, offsetim) ** 2) * neighmask * offsetmask
+            normalisation += w(neigh_length) * neighmask * offsetmask
         
         normalisation += normalisation == 0
         partial_result /= normalisation

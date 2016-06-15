@@ -28,9 +28,11 @@ shifts[50:,:] = square_neighborhood(7) * np.array([30, 5])
 shifts[0:25,:] = square_neighborhood(5) * 11
 shifts[25:50,:] = square_neighborhood(5) * 5
 
-#shifts = np.array([(i,j) for i in range(-1,2) for j in range(-1,1)])
+norm = shifts[:,0]**2 + shifts[:,1]**2
+ind = np.argsort(norm)
+shifts2 = shifts[ind,:]
 
-data_neighborhood = square_neighborhood(3)
+data_neighborhood = square_neighborhood(5)
 smoothness_neighborhood = square_neighborhood(3)
 
 def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood):
@@ -64,18 +66,34 @@ def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhoo
         tempx = shift_image(mx, -i, -j) * mask
         tempy = shift_image(my, -i, -j) * mask
         outQ = (warp(im, tempx, tempy) * mask_broadcast).astype(np.float32)
-        E00 = ((diff_image(outM, outQ) + difflabel(mx, my, tempx, tempy)) * Mnew).astype(np.float32)
-        E10 = ((diff_image(outalpha, outQ) + difflabel(alphax, alphay, tempx, tempy)) * Mnew).astype(np.float32)
-        E01 = ((diff_image(outM, outalpha) + difflabel(mx, my, alphax, alphay)) * Mnew).astype(np.float32)
+        E00 = ((diff_image(outM[:,:,:3], outQ[:,:,:3])**2 + difflabel(mx, my, tempx, tempy)) * Mnew).astype(np.float32)
+        E10 = ((diff_image(outalpha[:,:,:3], outQ[:,:,:3])**2 + difflabel(alphax, alphay, tempx, tempy)) * Mnew).astype(np.float32)
+        E01 = ((diff_image(outM[:,:,:3], outalpha[:,:,:3])**2 + difflabel(mx, my, alphax, alphay)) * Mnew).astype(np.float32)
         E11 = mx * 0
-        
+        E00 = mint(E00,E01+E10)-50
         L.append(E00[a:b,c:d].astype(np.float32))
         L.append(E10[a:b,c:d].astype(np.float32))
         L.append(E01[a:b,c:d].astype(np.float32))
         L.append(E11[a:b,c:d].astype(np.float32))
         
         if np.sum((E01[a:b,c:d]-E00[a:b,c:d]+E10[a:b,c:d]-E11[a:b,c:d])<0) > 0:
-            return 'energie non reguliere'
+            print(np.min(E01-E00+E10-E11))
+            plt.figure(1)
+            plt.imshow(mx)
+            plt.pause(10**(-3))
+            plt.figure(2)
+            plt.imshow(my,interpolation='nearest')
+            plt.pause(10**(-3)) 
+            plt.figure(3)
+            plt.imshow(E00,interpolation='nearest')
+            plt.pause(10**(-3))
+            plt.figure(4)
+            plt.imshow(E01,interpolation='nearest')
+            plt.pause(10**(-3))
+            plt.figure(5)
+            plt.imshow((E01-E00+E10-E11)<0)
+            plt.pause(10**(-3))
+            input()
         energy, alphamap = solve_binary_problem(indices, D0.astype(np.float32), D1.astype(np.float32), L)
     return energy, alphamap
 
@@ -92,13 +110,6 @@ def alpha_expansion(im, mask, shifts, data_energy, smoothness_neighborhood, roun
         D0 = data_energy[iy, ix, labelmap]
         D1 = data_energy[:,:,currlab]
         mx, my = compute_displacement_map(labelmap, shifts, mask)
-        print(mx.shape)
-        print(my.shape)
-        print(alpha)
-        print(D0.shape)
-        print(D1.shape)
-        print(alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)[0])
-        print(alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)[1])
         new_energy, alphamap = alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)
         
         if new_energy < energy :
@@ -113,9 +124,9 @@ def pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, rounds)
     data_energy = dataterm(im, mask, shifts, data_neighborhood)
     labelmap = alpha_expansion(im, mask, shifts, data_energy, smoothness_neighborhood, rounds)
     mx, my = compute_displacement_map(labelmap, shifts, mask)
-    return warp(im, mx, my)
+    return warp(im, mx, my), labelmap
 
-#out = pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, 2)
+#out, labelmap = pritch(im, mask, shifts2, data_neighborhood, smoothness_neighborhood, 2)
 
 #out2=np.zeros(out.shape)
 #for i in range(225):

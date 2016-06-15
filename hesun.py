@@ -7,7 +7,7 @@ Created on Wed May 18 13:03:07 2016
 
 import numpy as np
 import pylab as plt
-#import patchmatch as pm
+import patchmatch as pm
 #from pritch import *
 #from inpaitools import *
 
@@ -41,12 +41,13 @@ def he_sun(im, mask, m,data_neighborhood, smoothness_neighborhood, rounds):
     D = D.astype(np.float32)
     cost = np.zeros((sh[0],sh[1]))
     cost = cost.astype(np.float32)
-    pm.pm(im*(1-mask_broadcast), im*(1-mask_broadcast), D, cost, 5, 0, 50)
+    r = int(rayon(mask))
+    pm.pm(im*(1-mask_broadcast), im*(1-mask_broadcast), D, cost, 5, 20, 3*r)
     dx, dy = D[:,:,0], D[:,:,1] #partie qui manque à cause de patch match
     shifts, hh = offset_system(dx, dy, m)
     out, labelmap = pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, rounds)
-    return out, shifts
+    return out, shifts, labelmap
 
 data_neighborhood = square_neighborhood(3)
 smoothness_neighborhood = square_neighborhood(3)
-out, shifts = he_sun(im, mask, 50,data_neighborhood, smoothness_neighborhood, 2)
+out, shifts, labelmap = he_sun(im, mask, 99,data_neighborhood, smoothness_neighborhood, 2)
