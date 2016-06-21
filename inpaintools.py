@@ -111,7 +111,7 @@ def penaltydata(mx,my,mask):
     px, py = np.meshgrid(range(sh[1]), range(sh[0]))
     px = px + mx 
     py = py + my
-    C=1500000
+    C=5000000000
     K1=C*(px>(sh[1]-1))
     K2=C*(py>(sh[0]-1))
     K3=C*(px<0)

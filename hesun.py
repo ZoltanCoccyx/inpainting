@@ -11,9 +11,13 @@ import patchmatch as pm
 #from pritch import *
 #from inpaitools import *
 
-im = imread('elephant2_300x225_rgb.jpg').squeeze()
-mask = imread('elephant2_300x225_msk.jpg').squeeze()
-mask = mask > 10
+#im = imread('elephant2_300x225_rgb.jpg').squeeze()
+#mask = imread('elephant2_300x225_msk.jpg').squeeze()
+#mask = mask > 10
+
+#im = imread('kom07.png').squeeze()
+#mask = imread('kom07_msk.png', 'png').squeeze()
+#mask = mask>0
 
 def offset_system(dx, dy, m):
     xedges = np.arange(np.min(dx), np.max(dx) + 2)
@@ -51,3 +55,18 @@ def he_sun(im, mask, m,data_neighborhood, smoothness_neighborhood, rounds):
 data_neighborhood = square_neighborhood(3)
 smoothness_neighborhood = square_neighborhood(3)
 out, shifts, labelmap = he_sun(im, mask, 99,data_neighborhood, smoothness_neighborhood, 2)
+
+def petite_fonction(n):
+    return 'om' + str(n//10) + str(n%10)
+
+for i in range(1,13):
+    print(i)
+    r=petite_fonction(i)
+    im = imread('k' + r +'.png').squeeze()
+    mask = imread('k' + r +'_msk.png', 'png').squeeze()
+    mask = mask>0
+    out, shifts, labelmap = he_sun(im, mask, 99, data_neighborhood, smoothness_neighborhood, 2)
+    m = np.max(out)
+    out = out/m
+    plt.imsave('C:\Users\D\Desktop\inpainting\image\k' + r + '_hesun.png',out,vmin=0,vmax=255,format='png')
+    plt.imsave('C:\Users\D\Desktop\inpainting\image\k' + r + '_hesunlabel.png',labelmap,vmin=0,vmax=98,format='png')

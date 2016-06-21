@@ -65,6 +65,10 @@ def low_resolution_coordinates(im, scaledmask):
     scaledR = np.sum(block_view(im[:, :, 0], (scale, scale)), axis = (2,3)) / scale ** 2
     scaledG = np.sum(block_view(im[:, :, 1], (scale, scale)), axis = (2,3)) / scale ** 2
     scaledB = np.sum(block_view(im[:, :, 2], (scale, scale)), axis = (2,3)) / scale ** 2
+    gx = gx * 0.1
+    gy = gy * 0.1
+    Gx = Gx * 0.1
+    Gy = Gy * 0.1
     newim = np.array([scaledR, scaledG, scaledB, gx, gy, Gx, Gy]).transpose((1, 2, 0))
     return newim
 
@@ -76,18 +80,23 @@ def multiscale(im, mask, L = 2):
     
     # Initialisation des variables à la plus basse échelle
     scaledmask = (np.sum(block_view(mask, (2**L,2**L)), axis = (2, 3)) > 0) * 1
+    scaledmask = scaledmask>0
     scaledim = low_resolution_coordinates(im, scaledmask)
     labelmap = np.zeros((sh[0]//(2**L),sh[0]//(2**L)))
-    shifts = round_neighborhood(1.5*rayon(mask) / 2 ** L)
+    r = int(1.5*rayon(scaledmask))
+    shifts = round_neighborhood(r)
     data_neighborhood = square_neighborhood(5)
     smoothness_neighborhood = square_neighborhood(3)
     print 'Dataterm initial calculé'
     # recupération de la première carte d'offsets()
     out, labelmap = pritch(scaledim, scaledmask, shifts, data_neighborhood, smoothness_neighborhood, rounds = 2)
+#    scaledim = scaledim.copy(order ='C')
+#    out, shifts, labelmap = he_sun(scaledim[:,:,:3], scaledmask, 500, data_neighborhood, smoothness_neighborhood, 2)
     print(np.max(out[:,:,:3]))
     plt.figure(3)
-    plt.imshow(labelmap)
-    input()
+    plt.imshow(out[:,:,:3]/254.)
+    plt.figure(4)
+    plt.plot(shifts[:,0],shifts[:,1],'o')
     cumulx, cumuly = compute_displacement_map(labelmap, shifts)
     print 'Offsets initiaux calculés'
     
@@ -103,10 +112,8 @@ def multiscale(im, mask, L = 2):
         print ' ! Echelle ', L - k, '!'
         cumulx, cumuly, scaledmask, scaledim = changescale(cumulx, cumuly, mask, im)
         cumulx, cumuly = 2 * cumulx, 2 * cumuly # adaptation of the offsets to the new scale
-        plt.figure(55*k)
-        plt.imshow(scaledim/255)
         plt.figure(8759**k)
-        plt.imshow(warp(scaledim, cumulx, cumuly)/255)
+        plt.imshow(warp(scaledim, cumulx, cumuly)/255.)
         
         # Construction du dataterm à cette échelle
         width, height, depth = scaledim.shape
@@ -118,21 +125,21 @@ def multiscale(im, mask, L = 2):
         
         for index_neighbor in range(card_neighbors):
             dx, dy = data_neighborhood[index_neighbor]
-            neighims[:, :, :, index_neighbor] = warp(maskedscaledim, cumulx + dx, cumuly + dy)
+            neighims[:, :, :, index_neighbor] = warp(maskedscaledim, -dx, -dy)
         
         print 'Neighims calculées'
         
         print 'Calcul du dataterm à cette échelle. ', card_perturbations, 'perturbations.'
         for index_perturbation in range(card_perturbations):
             mx, my = perturbations[index_perturbation]
-            cumulpertx, cumulperty = cumulx - mx * scaledmask, cumuly - my * scaledmask
+            cumulpertx, cumulperty = cumulx + mx * scaledmask, cumuly + my * scaledmask
             partial_result = np.zeros((width, height))
             normalisation = np.zeros((width, height))
             
             for index_neighbor in range(card_neighbors):
                 dx, dy = data_neighborhood[index_neighbor]
                 neighim = neighims[:, :, :, index_neighbor].copy()
-                offsetim = warp(neighim, cumulpertx, cumulperty)
+                offsetim = warp(neighim, -cumulpertx, -cumulperty)
                 neigh_length = (dx ** 2 + dy ** 2) ** 0.5
                 partial_result += w(neigh_length) * (diff_image(neighim, offsetim) ** 2) * (neighim[:,:,0]>0) * (offsetim[:,:,0]>0)
                 normalisation += w(neigh_length) * (neighim[:,:,0]>0) * (offsetim[:,:,0]>0)
@@ -174,32 +181,31 @@ def multiscale(im, mask, L = 2):
             ai, aj = perturbations[currlab]
             # compute warp for the current map
             pertx, perty = compute_displacement_map(perturbationmap, perturbations, scaledmask)
-            cumulpertx, cumulperty = cumulx - pertx, cumuly - perty
+            cumulpertx, cumulperty = cumulx + pertx, cumuly + perty
             
             # compute warped image for the current map 
-            outM = warp(scaledim, cumulpertx, cumulperty) 
+            outM = warp(scaledim, cumulx, cumuly) 
             # compute warped image for the candidate shift 
-            outAlpha = warp(scaledim, cumulpertx - ai * scaledmask, cumulperty - aj * scaledmask)
+            outAlpha = warp(scaledim, cumulx + ai * scaledmask, cumuly + aj * scaledmask)
             
             energy_list = []
             
             for i,j in half_neighborhood:
-                neighMx = shift_image(cumulpertx,-i,-j) 
-                neighMy = shift_image(cumulperty,-i,-j)
+                neighMx = shift_image(cumulx,-i,-j) 
+                neighMy = shift_image(cumuly,-i,-j)
                 outQ = warp(scaledim, neighMx, neighMy)
-                Mnew = M + frontiere(scaledmask, np.array([[i,j]]))
-                
+                Mnew = M + frontiere(1-M, np.array([[-i,-j]]))
+                a, b, c, d = -j if j<0 else None,-j if j>0 else None,-i if i<0 else None,-i if i>0 else None
                 #p+m(q)   
                 p1 = indices                      # current pixel
                 p2 = shift_image(indices,-i,-j)   # always the same idx
-                energy_list.append(p1[:-j if j else None,:-i if i else None])
-                energy_list.append(p2[:-j if j else None,:-i if i else None])
-                
+                energy_list.append(p1[a:b,c:d])
+                energy_list.append(p2[a:b,c:d])
                 nullarray = (0 * cumulx).astype('float32')                
-                E00 = (((diff_image(outM, outQ) ** 2 + difflabel(cumulpertx, cumulperty, neighMx, neighMy)) * Mnew)[:-j if j else None,:-i if i else None]).astype(np.float32) #E00
-                E01 = (((diff_image(outM, outAlpha) ** 2 + difflabel(cumulpertx, cumulperty, cumulx + ai, cumuly + aj)) * Mnew)[:-j if j else None,:-i if i else None]).astype(np.float32) #E01
-                E10 = (((diff_image(outAlpha, outQ) ** 2 + difflabel(neighMx, neighMy, cumulx + ai, cumuly + aj)) * Mnew)[:-j if j else None,:-i if i else None]).astype(np.float32) #E10
-                E11 = (nullarray[:-j if j else None,:-i if i else None]).astype(np.float32) #E11
+                E00 = (((diff_image(outM, outQ) + difflabel(cumulx, cumuly, neighMx, neighMy)) * Mnew)[a:b,c:d]).astype(np.float32) #E00
+                E01 = (((diff_image(outM, outAlpha) + difflabel(cumulx, cumuly, cumulx + ai, cumuly + aj)) * Mnew)[a:b,c:d]).astype(np.float32) #E01
+                E10 = (((diff_image(outAlpha, outQ) + difflabel(neighMx, neighMy, cumulx + ai, cumuly + aj)) * Mnew)[a:b,c:d]).astype(np.float32) #E10
+                E11 = (nullarray[a:b,c:d]).astype(np.float32) #E11
                             
                 energy_list.append(E00) #E00
                 energy_list.append(E01) #E01
@@ -210,7 +216,20 @@ def multiscale(im, mask, L = 2):
             perturbationmap = perturbationmap.astype(np.int32)
             D0 = data_energy[iy, ix, perturbationmap].astype(np.float32)
             D1 = data_energy[:, :, currlab].astype(np.float32)
-            
+            if np.sum((E01-E00+E10-E11)<0) > 0:
+                print(np.min(E01-E00+E10-E11))
+                print((i,j))
+                print(neighMx[73,109])
+                print(neighMy[73,109])
+                print(E00[73,109])
+                print(E10[73,109])
+                print(E01[73,109])
+                print(scaledmask[0,0])
+                plt.figure(1)
+                plt.imshow((E01-E00+E10-E11)<0)
+                plt.pause(10**(-3))
+                print('energie non reguliere')
+                input()
             energy, blab = solve_binary_problem(indices, D0, D1, energy_list)
             
             # update solution

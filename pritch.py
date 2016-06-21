@@ -9,12 +9,15 @@ import numpy as np
 from scipy.misc import imread
 import pylab as plt
 from inpaintools import *
-  
+
 w = lambda x : np.exp(-0.25 * (x**2))    
 
-im = imread('elephant2_300x225_rgb.jpg').squeeze()
-mask = imread('elephant2_300x225_msk.jpg').squeeze()
-mask = mask > 10
+#im = imread('kom03.png').squeeze()
+#mask = imread('kom03_msk.png', 'png').squeeze()
+#mask = mask>0
+#im = imread('elephant2_300x225_rgb.jpg').squeeze()
+#mask = imread('elephant2_300x225_msk.jpg').squeeze()
+#mask = mask > 10
 
 #im=np.random.randint(255,size=(5,5,1))
 #mask=np.zeros((5,5))
@@ -32,7 +35,7 @@ norm = shifts[:,0]**2 + shifts[:,1]**2
 ind = np.argsort(norm)
 shifts2 = shifts[ind,:]
 
-data_neighborhood = square_neighborhood(5)
+data_neighborhood = square_neighborhood(3)
 smoothness_neighborhood = square_neighborhood(3)
 
 def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood):
@@ -66,17 +69,17 @@ def alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhoo
         tempx = shift_image(mx, -i, -j) * mask
         tempy = shift_image(my, -i, -j) * mask
         outQ = (warp(im, tempx, tempy) * mask_broadcast).astype(np.float32)
-        E00 = ((diff_image(outM[:,:,:3], outQ[:,:,:3])**2 + difflabel(mx, my, tempx, tempy)) * Mnew).astype(np.float32)
-        E10 = ((diff_image(outalpha[:,:,:3], outQ[:,:,:3])**2 + difflabel(alphax, alphay, tempx, tempy)) * Mnew).astype(np.float32)
-        E01 = ((diff_image(outM[:,:,:3], outalpha[:,:,:3])**2 + difflabel(mx, my, alphax, alphay)) * Mnew).astype(np.float32)
+        E00 = ((diff_image(outM[:,:,:3], outQ[:,:,:3]) + difflabel(mx, my, tempx, tempy)) * Mnew).astype(np.float32)
+        E10 = ((diff_image(outalpha[:,:,:3], outQ[:,:,:3]) + difflabel(alphax, alphay, tempx, tempy)) * Mnew).astype(np.float32)
+        E01 = ((diff_image(outM[:,:,:3], outalpha[:,:,:3]) + difflabel(mx, my, alphax, alphay)) * Mnew).astype(np.float32)
         E11 = mx * 0
-        E00 = mint(E00,E01+E10)-50
+        #E00 = mint(E00,E01+E10)-1
         L.append(E00[a:b,c:d].astype(np.float32))
         L.append(E10[a:b,c:d].astype(np.float32))
         L.append(E01[a:b,c:d].astype(np.float32))
         L.append(E11[a:b,c:d].astype(np.float32))
         
-        if np.sum((E01[a:b,c:d]-E00[a:b,c:d]+E10[a:b,c:d]-E11[a:b,c:d])<0) > 0:
+        if np.sum((E01-E00+E10-E11)<0) > 0:
             print(np.min(E01-E00+E10-E11))
             plt.figure(1)
             plt.imshow(mx)
@@ -111,11 +114,10 @@ def alpha_expansion(im, mask, shifts, data_energy, smoothness_neighborhood, roun
         D1 = data_energy[:,:,currlab]
         mx, my = compute_displacement_map(labelmap, shifts, mask)
         new_energy, alphamap = alpha_expansion_step(im, mask, mx, my, alpha, D0, D1, smoothness_neighborhood)
-        
         if new_energy < energy :
             energy = new_energy
             labelmap = currlab * alphamap + labelmap * (1 - alphamap)
-            print "it:%02d \t l:%d \t (%d,%d) \t changed:%d \t e:%f"%(t, currlab, alpha[0], alpha[1], np.sum(alphamap[:]), energy)
+            #print "it:%02d \t l:%d \t (%d,%d) \t changed:%d \t e:%f"%(t, currlab, alpha[0], alpha[1], np.sum(alphamap[:]), energy)
     
     return labelmap
     
@@ -127,8 +129,22 @@ def pritch(im, mask, shifts, data_neighborhood, smoothness_neighborhood, rounds)
     return warp(im, mx, my), labelmap
 
 #out, labelmap = pritch(im, mask, shifts2, data_neighborhood, smoothness_neighborhood, 2)
-
+#plt.imsave('C:\Users\D\Desktop\inpainting\image\komo03_pritch.png',out,vmin=0,vmax=255,format='png')
 #out2=np.zeros(out.shape)
 #for i in range(225):
 #    for j in range(300):
 #        out2[i,j,:]=out[224-i,299-j,:]
+#
+#def petite_fonction(n):
+#    return str(n//100) + str((n%100 - n%10)/10) + str(n%10)
+#
+#for i in range(1,145):
+#    print(i)
+#    r=petite_fonction(i)
+#    im = imread('a' + r +'.png').squeeze()
+#    mask = imread('a' + r +'_msk.png', 'png').squeeze()
+#    mask = mask>0
+#    out, labelmap = pritch(im, mask, shifts2, data_neighborhood, smoothness_neighborhood, 2)
+#    plt.imsave('C:\Users\D\Desktop\inpainting\image\a' + r + '_pritch.png',out,vmin=0,vmax=255,format='png')
+#    plt.imsave('C:\Users\D\Desktop\inpainting\image\a' + r + '_pritchlabel.png',labelmap,vmin=0,vmax=98,format='png')
+#   
