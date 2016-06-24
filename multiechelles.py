@@ -17,6 +17,8 @@ im = imread('elephant2_300x225_rgb.jpg').squeeze()
 im=im[1:,:-4]
 mask = imread('elephant2_300x225_msk.jpg').squeeze()
 mask=mask[1:,:-4]
+im = im[::-1,:,:]
+mask = mask[::-1,:]
 mask = mask > 10
 
 data_neighborhood = square_neighborhood(5)
@@ -40,6 +42,7 @@ def changescale(mx, my, mask, im):
     scaledG = np.sum(block_view(im[:, :, 1], (scale, scale)), axis = (2,3)) / scale ** 2
     scaledB = np.sum(block_view(im[:, :, 2], (scale, scale)), axis = (2,3)) / scale ** 2
     scaledim = np.dstack((scaledR, scaledG, scaledB))
+    print(newmx.shape)
     return newmx * scaledmask, newmy * scaledmask,  scaledmask, scaledim 
                   # pour ne pas forcer une image impaire dans une image paire PAS BEAU !
 
@@ -87,16 +90,27 @@ def multiscale(im, mask, L = 2):
     shifts = round_neighborhood(r)
     data_neighborhood = square_neighborhood(5)
     smoothness_neighborhood = square_neighborhood(3)
-    print 'Dataterm initial calculé'
-    # recupération de la première carte d'offsets()
+
+    print 'Dataterm initial calculé'    
+    print(scaledim.shape)
+    print(scaledmask.shape)
+    print(shifts.shape)
+    print(data_neighborhood.shape)
+    print(smoothness_neighborhood.shape)
+    # recupération de la première carte d'offsets
     out, labelmap = pritch(scaledim, scaledmask, shifts, data_neighborhood, smoothness_neighborhood, rounds = 2)
 #    scaledim = scaledim.copy(order ='C')
 #    out, shifts, labelmap = he_sun(scaledim[:,:,:3], scaledmask, 500, data_neighborhood, smoothness_neighborhood, 2)
     print(np.max(out[:,:,:3]))
+<<<<<<< HEAD
     plt.figure(3)
     plt.imshow(out[:,:,:3]/254.)
     plt.figure(4)
     plt.plot(shifts[:,0],shifts[:,1],'o')
+=======
+    plt.figure(2)
+    plt.imshow(out[:,:,:3]/np.max(out[:,:,:3]))
+>>>>>>> parent of 734d31e... hesun qui marche super bien + pritch modifié
     cumulx, cumuly = compute_displacement_map(labelmap, shifts)
     print 'Offsets initiaux calculés'
     
